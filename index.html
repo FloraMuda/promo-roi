@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Promo ROI Calculator — Buy X Get 1 Free</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f8f7f4;
+    --surface: #ffffff;
+    --surface2: #f2f1ee;
+    --border: rgba(0,0,0,0.10);
+    --border2: rgba(0,0,0,0.18);
+    --text: #1a1a18;
+    --text2: #5a5a56;
+    --text3: #9a9a94;
+    --green: #0F6E56;
+    --green-bg: #E1F5EE;
+    --green-dark: #085041;
+    --amber: #854F0B;
+    --amber-bg: #FAEEDA;
+    --red: #A32D2D;
+    --red-bg: #FCEBEB;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --font: 'DM Sans', system-ui, sans-serif;
+    --font-mono: 'DM Mono', 'Fira Mono', monospace;
+  }
+
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* ── Top bar ── */
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .topbar-title { font-size: 15px; font-weight: 600; }
+  .topbar-sub   { font-size: 12px; color: var(--text3); }
+  .badge {
+    font-size: 10px; font-weight: 500; padding: 3px 8px;
+    border-radius: 4px; display: inline-block;
+  }
+  .badge-g { background: var(--green-bg); color: var(--green); }
+  .badge-a { background: var(--amber-bg); color: var(--amber); }
+  .badge-r { background: var(--red-bg);   color: var(--red); }
+
+  /* ── Layout ── */
+  .layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 0;
+    min-height: calc(100vh - 56px);
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 1.25rem 1rem;
+    overflow-y: auto;
+  }
+  .sidebar-section { margin-bottom: 1.5rem; }
+  .sidebar-label {
+    font-size: 10px; font-weight: 600; letter-spacing: .07em;
+    text-transform: uppercase; color: var(--text3); margin-bottom: 8px;
+  }
+
+  /* Scenario tabs */
+  .scenario-list { display: flex; flex-direction: column; gap: 4px; }
+  .scenario-btn {
+    padding: 8px 10px; border-radius: var(--radius-sm); border: 1px solid transparent;
+    cursor: pointer; font-size: 12px; font-family: var(--font); font-weight: 500;
+    color: var(--text2); background: transparent; text-align: left; transition: all .15s;
+  }
+  .scenario-btn small { display: block; font-weight: 400; color: var(--text3); margin-top: 1px; }
+  .scenario-btn:hover { background: var(--surface2); }
+  .scenario-btn.active { background: var(--green-bg); color: var(--green-dark); border-color: rgba(15,110,86,.2); }
+
+  /* Sliders */
+  .control { margin-bottom: 12px; }
+  .control-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
+  .control-label  { font-size: 12px; color: var(--text2); }
+  .control-value  { font-size: 12px; font-weight: 600; font-family: var(--font-mono); color: var(--text); }
+  input[type=range] {
+    width: 100%; accent-color: var(--green); height: 4px;
+    cursor: pointer; appearance: none; background: var(--surface2);
+    border-radius: 2px; outline: none;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    appearance: none; width: 14px; height: 14px;
+    border-radius: 50%; background: var(--green); cursor: pointer;
+  }
+  select {
+    width: 100%; padding: 6px 8px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border2); font-size: 12px;
+    font-family: var(--font); background: var(--surface); color: var(--text);
+    cursor: pointer;
+  }
+
+  /* ── Main area ── */
+  .main { padding: 1.5rem; overflow-y: auto; }
+
+  /* SKU chips */
+  .sku-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 6px; margin-bottom: 1rem;
+  }
+  .sku-chip {
+    padding: 8px 10px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border2); cursor: pointer;
+    font-family: var(--font); text-align: left; background: var(--surface);
+    transition: all .15s;
+  }
+  .sku-chip span.sku-id   { display: block; font-size: 12px; font-weight: 600; color: var(--text); font-family: var(--font-mono); }
+  .sku-chip span.sku-desc { display: block; font-size: 11px; color: var(--text3); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sku-chip:hover  { border-color: var(--green); }
+  .sku-chip.active { border-color: var(--green); background: var(--green-bg); }
+  .sku-chip.active span.sku-id { color: var(--green-dark); }
+
+  /* Metric cards */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px; margin-bottom: 1rem;
+  }
+  .metric {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 14px;
+  }
+  .metric-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+  .metric-value { font-size: 20px; font-weight: 600; font-family: var(--font-mono); }
+  .metric-value.g { color: var(--green); }
+  .metric-value.r { color: var(--red); }
+  .metric-value.a { color: var(--amber); }
+
+  /* P&L table */
+  .pl-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden; margin-bottom: 1rem;
+  }
+  .pl-section-head {
+    background: var(--surface2); padding: 7px 1rem;
+    font-size: 11px; font-weight: 600; color: var(--text2);
+    letter-spacing: .03em; border-bottom: 1px solid var(--border);
+  }
+  .pl-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 1rem; border-bottom: 1px solid var(--border);
+  }
+  .pl-row:last-child { border-bottom: none; }
+  .pl-row.total { background: var(--surface2); }
+  .pl-row.grand { background: #f0fdf8; }
+  .pl-label { flex: 1; font-size: 13px; color: var(--text2); }
+  .pl-label small { display: block; font-size: 10px; color: var(--text3); margin-top: 1px; font-family: var(--font-mono); }
+  .pl-val {
+    font-size: 13px; font-weight: 600; font-family: var(--font-mono);
+    text-align: right; min-width: 80px;
+  }
+  .pl-val.neg { color: var(--red); }
+  .pl-val.pos { color: var(--green); }
+  .pl-val.muted { font-weight: 400; color: var(--text2); }
+
+  /* Bar chart section */
+  .bar-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 1rem;
+  }
+  .bar-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 5px 0; border-bottom: 1px solid var(--border); cursor: pointer;
+  }
+  .bar-row:last-child { border-bottom: none; }
+  .bar-row:hover .bar-sku { color: var(--green); }
+  .bar-sku   { width: 70px; flex-shrink: 0; font-size: 12px; font-family: var(--font-mono); color: var(--text2); font-weight: 500; }
+  .bar-sku.active { color: var(--green-dark); font-weight: 600; }
+  .bar-track { flex: 1; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+  .bar-fill  { height: 100%; border-radius: 4px; transition: width .35s ease; }
+  .bar-pct   { width: 46px; text-align: right; font-size: 12px; font-weight: 600; font-family: var(--font-mono); }
+
+  /* Section title */
+  .section-title {
+    font-size: 11px; font-weight: 600; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--text3); margin-bottom: 8px;
+  }
+  .detail-title {
+    font-size: 16px; font-weight: 600; margin-bottom: 4px;
+  }
+  .detail-sub { font-size: 12px; color: var(--text3); margin-bottom: 1rem; }
+
+  @media (max-width: 720px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="topbar-title">Promo ROI Calculator</div>
+  </div>
+  <span class="badge badge-g" id="promoLabel">Buy 3 Get 1 Free · Bundle of 4</span>
+  <div style="margin-left:auto; display:flex; align-items:center; gap:12px;">
+    <span style="font-size:11px; color:var(--text3);">Hill's Pet Nutrition · Internal use only</span>
+    <button id="exportBtn" onclick="exportToExcel()" style="
+      display:flex; align-items:center; gap:6px;
+      padding:6px 14px; border-radius:var(--radius-sm);
+      border:1px solid var(--green); background:var(--green-bg);
+      color:var(--green-dark); font-size:12px; font-weight:600;
+      font-family:var(--font); cursor:pointer; transition:all .15s;
+    " onmouseover="this.style.background='#c5eddf'" onmouseout="this.style.background='var(--green-bg)'">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M8 1v9M8 10l-3-3M8 10l3-3M2 12v1a1 1 0 001 1h10a1 1 0 001-1v-1" stroke="#085041" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      Export Excel
+    </button>
+  </div>
+</div>
+
+<div class="layout">
+
+  <!-- ── SIDEBAR ── -->
+  <aside class="sidebar">
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Scenario</div>
+      <div class="scenario-list" id="scenarioList"></div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Promo config</div>
+      <div class="control">
+        <div class="control-header">
+          <span class="control-label">Buy X get 1 free (X)</span>
+          <span class="control-value" id="promoX-out">3</span>
+        </div>
+        <input type="range" id="promoX" min="1" max="9" step="1" value="3">
+      </div>
+      <div class="control">
+        <div class="control-header"><span class="control-label">FF funded?</span></div>
+        <select id="ffFunded"><option value="No">No</option><option value="Yes">Yes</option></select>
+      </div>
+      <div class="control" style="margin-top:8px;">
+        <div class="control-header">
+          <span class="control-label">Promo funding factor (D28)</span>
+          <span class="control-value" id="d28-out">50%</span>
+        </div>
+        <input type="range" id="d28" min="0" max="1" step="0.05" value="0.5">
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Rates (D col)</div>
+      <div class="control">
+        <div class="control-header">
+          <span class="control-label">Customer discount (D18)</span>
+          <span class="control-value" id="discRate-out">16.5%</span>
+        </div>
+        <input type="range" id="discRate" min="0" max="0.4" step="0.005" value="0.165">
+      </div>
+      <div class="control">
+        <div class="control-header">
+          <span class="control-label">Order profile (D19)</span>
+          <span class="control-value" id="opRate-out">2.5%</span>
+        </div>
+        <input type="range" id="opRate" min="0" max="0.1" step="0.001" value="0.025">
+      </div>
+      <div class="control">
+        <div class="control-header">
+          <span class="control-label">Ullage (D20)</span>
+          <span class="control-value" id="ullageRate-out">0.5%</span>
+        </div>
+        <input type="range" id="ullageRate" min="0" max="0.05" step="0.001" value="0.005">
+      </div>
+      <div class="control">
+        <div class="control-header">
+          <span class="control-label">SD rebate (D21)</span>
+          <span class="control-value" id="sdRate-out">15.3%</span>
+        </div>
+        <input type="range" id="sdRate" min="0" max="0.3" step="0.001" value="0.1528">
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- ── MAIN ── -->
+  <main class="main">
+
+    <div class="section-title">Select SKU (row 7)</div>
+    <div class="sku-grid" id="skuGrid"></div>
+
+    <div class="detail-title" id="detailTitle"></div>
+    <div class="detail-sub"  id="detailSub"></div>
+
+    <div class="metrics-grid" id="metricsGrid"></div>
+
+    <!-- P&L waterfall -->
+    <div class="pl-card">
+
+      <div class="pl-section-head">1.2 · SKU lookups (rows 8–9)</div>
+      <div class="pl-row">
+        <div class="pl-label">Description <small>row 8 · VLOOKUP → Master Price List col 2</small></div>
+        <span class="pl-val muted" id="r-desc"></span>
+      </div>
+      <div class="pl-row">
+        <div class="pl-label">Origin <small>row 9 · VLOOKUP → SKU Source CS&amp;L Rates col 2</small></div>
+        <span class="pl-val muted" id="r-origin"></span>
+      </div>
+
+      <div class="pl-section-head">1.3 · UOM &amp; prices (rows 10–16)</div>
+      <div class="pl-row">
+        <div class="pl-label">Multiplier — units per box <small>row 14 · list price ÷ wholesale unit price</small></div>
+        <span class="pl-val muted" id="r-mult"></span>
+      </div>
+      <div class="pl-row">
+        <div class="pl-label">P&amp;L UOM to bundle conversion <small>row 10 · =$D$3 / multiplier</small></div>
+        <span class="pl-val muted" id="r-uom"></span>
+      </div>
+      <div class="pl-row">
+        <div class="pl-label">List price (ex GST) <small>row 12 · Master Price List col E</small></div>
+        <span class="pl-val" id="r-lp"></span>
+      </div>
+      <div class="pl-row">
+        <div class="pl-label">Wholesale unit price <small>row 13 · Master Price List col H</small></div>
+        <span class="pl-val" id="r-wup"></span>
+      </div>
+      <div class="pl-row">
+        <div class="pl-label">PB shelf price (excl. GST) <small>row 15</small></div>
+        <span class="pl-val" id="r-shelf"></span>
+      </div>
+      <div class="pl-row">
+        <div class="pl-label">PB shelf price per box <small>row 16 · =row15 × multiplier</small></div>
+        <span class="pl-val" id="r-shelfbox"></span>
+      </div>
+
+      <div class="pl-section-head">1.5 · Customer investments (rows 17–22)</div>
+      <div class="pl-row">
+        <div class="pl-label">Customer discount <small>row 18 · list × D18</small></div>
+        <span class="pl-val neg" id="r-disc"></span>
+      </div>
+      <div class="pl-row">
+        <div class="pl-label">Order profile <small>row 19 · (list − disc) × D19</small></div>
+        <span class="pl-val neg" id="r-op"></span>
+      </div>
+      <div class="pl-row">
+        <div class="pl-label">Ullage <small>row 20 · (list − disc − OP) × D20</small></div>
+        <span class="pl-val neg" id="r-ullage"></span>
+      </div>
+      <div class="pl-row">
+        <div class="pl-label">SD rebate <small>row 21 · (list − disc − OP − ullage) × D21</small></div>
+        <span class="pl-val neg" id="r-sd"></span>
+      </div>
+      <div class="pl-row total">
+        <div class="pl-label" style="font-weight:600;">Total customer investments <small>row 17 · SUM(rows 18:21)</small></div>
+        <span class="pl-val neg" id="r-custi"></span>
+      </div>
+      <div class="pl-row grand">
+        <div class="pl-label" style="font-weight:600;">Purchase price <small>row 22 · list − customer investments</small></div>
+        <span class="pl-val pos" id="r-pp"></span>
+      </div>
+
+      <div class="pl-section-head">1.6 · Consumer investments (rows 23–25)</div>
+      <div class="pl-row">
+        <div class="pl-label">FFL rebate <small>row 24 · D24 = 2%×55% · applied to list price</small></div>
+        <span class="pl-val neg" id="r-ffl"></span>
+      </div>
+      <div class="pl-row">
+        <div class="pl-label">Promo funding <small>row 25 · FFL rebate × D28</small></div>
+        <span class="pl-val neg" id="r-promo"></span>
+      </div>
+      <div class="pl-row total">
+        <div class="pl-label" style="font-weight:600;">Total consumer investments <small>row 23 · SUM(row 24)</small></div>
+        <span class="pl-val neg" id="r-consi"></span>
+      </div>
+
+      <div class="pl-section-head">ROI metrics</div>
+      <div class="pl-row">
+        <div class="pl-label">Free unit cost (1 in bundle of <span id="r-bsize"></span>) <small>purchase price ÷ bundle size</small></div>
+        <span class="pl-val neg" id="r-freeunit"></span>
+      </div>
+      <div class="pl-row">
+        <div class="pl-label">Net revenue per bundle <small>purchase price × X ÷ bundle</small></div>
+        <span class="pl-val pos" id="r-netrev"></span>
+      </div>
+      <div class="pl-row">
+        <div class="pl-label">Total promo cost as % of list</div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px;">
+          <span class="pl-val" id="r-promopct"></span>
+          <div style="width:100px;height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;">
+            <div class="bar-fill" id="r-bar" style="width:0%"></div>
+          </div>
+        </div>
+      </div>
+      <div class="pl-row grand">
+        <div class="pl-label" style="font-weight:600;">Effective margin (net rev ÷ list)</div>
+        <span class="pl-val" id="r-margin"></span>
+      </div>
+
+    </div>
+
+    <!-- All SKUs comparison -->
+    <div class="section-title">All SKUs — promo cost % of list</div>
+    <div class="bar-card" id="allBars"></div>
+
+  </main>
+</div>
+
+<script>
+const SCENARIOS = {
+  template:   { label:'Template (Pre-Promo)',          sub:'8 SKUs · X=3', promoX:3, skus:[
+    {sku:'11102LG',desc:"Hill's Prescription Diet (A)",origin:'US',listPrice:48.00,wup:12.00,shelf:13.50},
+    {sku:'603979', desc:"Hill's Science Diet (B)",     origin:'AU',listPrice:52.00,wup:13.00,shelf:14.60},
+    {sku:'11097LG',desc:"Hill's Prescription Diet (C)",origin:'US',listPrice:44.00,wup:11.00,shelf:12.20},
+    {sku:'11093LG',desc:"Hill's Science Diet (D)",     origin:'NZ',listPrice:56.00,wup:14.00,shelf:15.80},
+    {sku:'11091LG',desc:"Hill's Prescription Diet (E)",origin:'US',listPrice:40.00,wup:10.00,shelf:11.10},
+    {sku:'11095LG',desc:"Hill's Science Diet (F)",     origin:'AU',listPrice:36.00,wup: 9.00,shelf:10.00},
+    {sku:'11099LG',desc:"Hill's Prescription Diet (G)",origin:'US',listPrice:60.00,wup:15.00,shelf:17.00},
+    {sku:'11101LG',desc:"Hill's Science Diet (H)",     origin:'NZ',listPrice:32.00,wup: 8.00,shelf: 8.80},
+  ]},
+  bogohp_dry: { label:'BOGOHP All Dry (Before)',        sub:'9 SKUs · X=1', promoX:1, skus:[
+    {sku:'7055',    desc:"Hill's SD Adult Chicken Dry",  origin:'US',listPrice:55.00,wup:13.75,shelf:16.00},
+    {sku:'6446',    desc:"Hill's SD Puppy Dry",          origin:'US',listPrice:62.00,wup:15.50,shelf:18.50},
+    {sku:'10316HG', desc:"Hill's SD Large Breed Adult",  origin:'AU',listPrice:74.00,wup:18.50,shelf:22.00},
+    {sku:'10310HG', desc:"Hill's SD Large Breed Puppy",  origin:'AU',listPrice:78.00,wup:19.50,shelf:23.50},
+    {sku:'9366',    desc:"Hill's SD Senior 11+",         origin:'US',listPrice:50.00,wup:12.50,shelf:14.80},
+    {sku:'1463',    desc:"Hill's SD Adult Small Paws",   origin:'NZ',listPrice:45.00,wup:11.25,shelf:13.20},
+    {sku:'10301HG', desc:"Hill's SD Perfect Weight",     origin:'AU',listPrice:68.00,wup:17.00,shelf:20.00},
+    {sku:'605051',  desc:"Hill's SD Sensitive Stomach",  origin:'US',listPrice:57.00,wup:14.25,shelf:16.80},
+    {sku:'606857',  desc:"Hill's SD Perfect Digestion",  origin:'US',listPrice:60.00,wup:15.00,shelf:17.50},
+  ]},
+  bogof_pd:   { label:'BOGOF Perfect Digestion (After)',sub:'9 SKUs · X=1', promoX:1, skus:[
+    {sku:'606857',desc:"Hill's SD PD Chicken Adult",  origin:'US',listPrice:60.00,wup:15.00,shelf:17.50},
+    {sku:'606861',desc:"Hill's SD PD Beef Adult",     origin:'US',listPrice:60.00,wup:15.00,shelf:17.50},
+    {sku:'606890',desc:"Hill's SD PD Lamb Adult",     origin:'AU',listPrice:58.00,wup:14.50,shelf:17.00},
+    {sku:'606858',desc:"Hill's SD PD Chicken Senior", origin:'US',listPrice:62.00,wup:15.50,shelf:18.00},
+    {sku:'606862',desc:"Hill's SD PD Beef Senior",    origin:'US',listPrice:62.00,wup:15.50,shelf:18.00},
+    {sku:'606868',desc:"Hill's SD PD Large Breed",    origin:'AU',listPrice:68.00,wup:17.00,shelf:20.00},
+    {sku:'605821',desc:"Hill's SD PD Weight",         origin:'NZ',listPrice:64.00,wup:16.00,shelf:18.80},
+    {sku:'606889',desc:"Hill's SD PD Cat Chicken",    origin:'US',listPrice:44.00,wup:11.00,shelf:13.00},
+    {sku:'606864',desc:"Hill's SD PD Cat Beef",       origin:'US',listPrice:44.00,wup:11.00,shelf:13.00},
+  ]},
+  dog_pd:     { label:'Dog — Perfect Digestion',        sub:'7 SKUs · X=1', promoX:1, skus:[
+    {sku:'606857',desc:"Hill's SD PD Chicken Adult",  origin:'US',listPrice:60.00,wup:15.00,shelf:17.50},
+    {sku:'606861',desc:"Hill's SD PD Beef Adult",     origin:'US',listPrice:60.00,wup:15.00,shelf:17.50},
+    {sku:'606890',desc:"Hill's SD PD Lamb Adult",     origin:'AU',listPrice:58.00,wup:14.50,shelf:17.00},
+    {sku:'606858',desc:"Hill's SD PD Chicken Senior", origin:'US',listPrice:62.00,wup:15.50,shelf:18.00},
+    {sku:'606862',desc:"Hill's SD PD Beef Senior",    origin:'US',listPrice:62.00,wup:15.50,shelf:18.00},
+    {sku:'606868',desc:"Hill's SD PD Large Breed",    origin:'AU',listPrice:68.00,wup:17.00,shelf:20.00},
+    {sku:'605821',desc:"Hill's SD PD Weight",         origin:'NZ',listPrice:64.00,wup:16.00,shelf:18.80},
+  ]},
+  cat_pd:     { label:'Cat — Perfect Digestion',        sub:'3 SKUs · X=1', promoX:1, skus:[
+    {sku:'606889',desc:"Hill's SD PD Cat Chicken",    origin:'US',listPrice:44.00,wup:11.00,shelf:13.00},
+    {sku:'606864',desc:"Hill's SD PD Cat Beef",       origin:'US',listPrice:44.00,wup:11.00,shelf:13.00},
+    {sku:'606865',desc:"Hill's SD PD Cat Lamb",       origin:'AU',listPrice:44.00,wup:11.00,shelf:13.00},
+  ]},
+};
+
+let activeScenario = 'template';
+let activeIdx = 0;
+
+function inputs() {
+  return {
+    X:    parseInt(document.getElementById('promoX').value),
+    disc: parseFloat(document.getElementById('discRate').value),
+    op:   parseFloat(document.getElementById('opRate').value),
+    ull:  parseFloat(document.getElementById('ullageRate').value),
+    sd:   parseFloat(document.getElementById('sdRate').value),
+    d28:  parseFloat(document.getElementById('d28').value),
+  };
+}
+
+function calc(s, inp) {
+  const lp      = s.listPrice;
+  const mult    = lp / s.wup;
+  const uom     = (inp.X + 1) / mult;
+  const shelfBox= s.shelf * mult;
+  const disc    = lp * inp.disc;
+  const op      = (lp - disc) * inp.op;
+  const ull     = (lp - disc - op) * inp.ull;
+  const sd      = (lp - disc - op - ull) * inp.sd;
+  const custI   = disc + op + ull + sd;
+  const pp      = lp - custI;
+  const ffl     = 0.02 * 0.55 * lp;
+  const promo   = ffl * inp.d28;
+  const consI   = ffl;
+  const freeUnit= pp / (inp.X + 1);
+  const netRev  = pp * inp.X / (inp.X + 1);
+  const promoPct= (freeUnit + promo) / lp;
+  const margin  = netRev / lp;
+  return { lp, mult, uom, shelfBox, disc, op, ull, sd, custI, pp, ffl, promo, consI, freeUnit, netRev, promoPct, margin };
+}
+
+const $f  = v => '$' + Math.abs(v).toFixed(2);
+const pct = v => (v * 100).toFixed(1) + '%';
+const bc  = v => v > 0.25 ? 'var(--red)' : v > 0.18 ? 'var(--amber)' : 'var(--green)';
+
+function render() {
+  const inp  = inputs();
+  const sc   = SCENARIOS[activeScenario];
+  if (activeIdx >= sc.skus.length) activeIdx = 0;
+  const s    = sc.skus[activeIdx];
+  const c    = calc(s, inp);
+  const bsz  = inp.X + 1;
+
+  document.getElementById('promoLabel').textContent = `Buy ${inp.X} Get 1 Free · Bundle of ${bsz}`;
+  document.getElementById('r-bsize').textContent    = bsz;
+  document.getElementById('detailTitle').textContent = s.sku + ' · ' + s.desc;
+  document.getElementById('detailSub').textContent   = 'Origin: ' + s.origin + ' · Multiplier: ' + c.mult.toFixed(1) + 'x · List: ' + $f(c.lp);
+
+  const set = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = val; };
+  set('r-desc', s.desc);       set('r-origin', s.origin);
+  set('r-mult', c.mult.toFixed(1)+'x');  set('r-uom', c.uom.toFixed(3));
+  set('r-lp', $f(c.lp));       set('r-wup', $f(s.wup));
+  set('r-shelf', $f(s.shelf)); set('r-shelfbox', $f(c.shelfBox));
+  set('r-disc', '-'+$f(c.disc));  set('r-op', '-'+$f(c.op));
+  set('r-ullage', '-'+$f(c.ull)); set('r-sd', '-'+$f(c.sd));
+  set('r-custi', '-'+$f(c.custI)); set('r-pp', $f(c.pp));
+  set('r-ffl', '-'+$f(c.ffl));  set('r-promo', '-'+$f(c.promo));
+  set('r-consi', '-'+$f(c.consI));
+  set('r-freeunit', '-'+$f(c.freeUnit)); set('r-netrev', $f(c.netRev));
+  set('r-promopct', pct(c.promoPct));
+  set('r-margin', pct(c.margin));
+
+  const bar = document.getElementById('r-bar');
+  bar.style.width      = Math.min(c.promoPct * 350, 100) + '%';
+  bar.style.background = bc(c.promoPct);
+  document.getElementById('r-promopct').style.color = bc(c.promoPct);
+  const mEl = document.getElementById('r-margin');
+  mEl.className = 'pl-val ' + (c.margin > 0.5 ? 'pos' : c.margin > 0.35 ? '' : 'neg');
+
+  const mClass = c.margin > 0.5 ? 'g' : c.margin > 0.35 ? 'a' : 'r';
+  const pp2    = c.promoPct;
+  document.getElementById('metricsGrid').innerHTML = [
+    ['List price', $f(c.lp), ''],
+    ['Purchase price', $f(c.pp), ''],
+    ['Free unit cost', '-'+$f(c.freeUnit), 'r'],
+    ['Net rev / bundle', $f(c.netRev), mClass],
+    ['Promo cost %', pct(pp2), pp2>0.25?'r':pp2>0.18?'a':'g'],
+    ['Margin %', pct(c.margin), mClass],
+  ].map(([l,v,cls]) => `<div class="metric"><div class="metric-label">${l}</div><div class="metric-value ${cls}">${v}</div></div>`).join('');
+
+  const maxP = Math.max(...sc.skus.map(sk => calc(sk, inp).promoPct));
+  document.getElementById('allBars').innerHTML = sc.skus.map((sk, i) => {
+    const cc = calc(sk, inp);
+    const w  = (cc.promoPct / maxP * 100).toFixed(1);
+    const col= bc(cc.promoPct);
+    const isA= i === activeIdx;
+    return `<div class="bar-row" onclick="selectSKU(${i})">
+      <span class="bar-sku ${isA?'active':''}">${sk.sku}</span>
+      <div class="bar-track"><div class="bar-fill" style="width:${w}%;background:${col};"></div></div>
+      <span class="bar-pct" style="color:${col};">${pct(cc.promoPct)}</span>
+    </div>`;
+  }).join('');
+}
+
+function buildSKUGrid() {
+  const skus = SCENARIOS[activeScenario].skus;
+  document.getElementById('skuGrid').innerHTML = skus.map((s,i) =>
+    `<button class="sku-chip ${i===activeIdx?'active':''}" onclick="selectSKU(${i})">
+      <span class="sku-id">${s.sku}</span>
+      <span class="sku-desc">${s.desc}</span>
+    </button>`
+  ).join('');
+}
+
+function buildScenarios() {
+  document.getElementById('scenarioList').innerHTML = Object.entries(SCENARIOS).map(([key,sc]) =>
+    `<button class="scenario-btn ${key===activeScenario?'active':''}" onclick="selectScenario('${key}')">
+      ${sc.label}<small>${sc.sub}</small>
+    </button>`
+  ).join('');
+}
+
+window.selectSKU = function(i) { activeIdx = i; buildSKUGrid(); render(); };
+window.selectScenario = function(key) {
+  activeScenario = key; activeIdx = 0;
+  const sc = SCENARIOS[key];
+  document.getElementById('promoX').value   = sc.promoX;
+  document.getElementById('promoX-out').textContent = sc.promoX;
+  buildScenarios(); buildSKUGrid(); render();
+};
+
+[['promoX','int'],['discRate','pct'],['opRate','pct'],['ullageRate','pct'],['sdRate','pct'],['d28','pct']].forEach(([id,fmt])=>{
+  document.getElementById(id).addEventListener('input', e => {
+    const v = parseFloat(e.target.value);
+    document.getElementById(id+'-out').textContent = fmt==='int' ? v : (v*100).toFixed(1)+'%';
+    render();
+  });
+});
+document.getElementById('ffFunded').addEventListener('change', render);
+
+buildScenarios();
+buildSKUGrid();
+render();
+
+// ── Excel export (SheetJS) ──────────────────────────────────────────────────
+window.exportToExcel = function() {
+  const btn = document.getElementById('exportBtn');
+  btn.textContent = 'Generating…';
+  btn.disabled = true;
+
+  setTimeout(() => {
+    try {
+      const inp = inputs();
+      const sc  = SCENARIOS[activeScenario];
+      const s   = sc.skus[activeIdx];
+      const c   = calc(s, inp);
+      const bsz = inp.X + 1;
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('en-AU', {day:'2-digit',month:'short',year:'numeric'});
+      const wb = XLSX.utils.book_new();
+
+      // ── Sheet 1: Active SKU P&L detail ─────────────────────────────────
+      const headerStyle = { font:{bold:true}, fill:{fgColor:{rgb:'0F6E56'}}, alignment:{horizontal:'left'} };
+
+      const detail = [
+        ['Promo ROI Calculator — SKU Detail', '', ''],
+        ['Generated', dateStr, ''],
+        ['Scenario', sc.label, ''],
+        ['', '', ''],
+        ['PROMO CONFIGURATION', '', ''],
+        ['Buy X get 1 free (X)', inp.X, ''],
+        ['Bundle size (X+1)', bsz, ''],
+        ['FF Funded', document.getElementById('ffFunded').value, ''],
+        ['Promo funding factor (D28)', inp.d28, ''],
+        ['', '', ''],
+        ['RATES', 'Rate', ''],
+        ['Customer discount (D18)', inp.disc, ''],
+        ['Order profile (D19)', inp.op, ''],
+        ['Ullage (D20)', inp.ull, ''],
+        ['SD rebate (D21)', inp.sd, ''],
+        ['', '', ''],
+        ['SKU DETAIL', 'Value', 'Notes'],
+        ['SKU', s.sku, ''],
+        ['Description', s.desc, 'row 8 · VLOOKUP → Master Price List'],
+        ['Origin', s.origin, 'row 9 · VLOOKUP → SKU Source CS&L Rates'],
+        ['Multiplier (units per box)', c.mult, 'row 14 · list ÷ wholesale unit price'],
+        ['P&L UOM to bundle conversion', c.uom, 'row 10 · bundle size ÷ multiplier'],
+        ['', '', ''],
+        ['PRICES', 'Value ($)', 'Notes'],
+        ['List price (ex GST)', c.lp, 'row 12 · Master Price List col E'],
+        ['Wholesale unit price', s.wup, 'row 13 · Master Price List col H'],
+        ['PB shelf price (excl. GST)', s.shelf, 'row 15'],
+        ['PB shelf price per box', c.shelfBox, 'row 16 · shelf × multiplier'],
+        ['', '', ''],
+        ['CUSTOMER INVESTMENTS', 'Amount ($)', 'Formula'],
+        ['Customer discount', -c.disc, 'list × D18'],
+        ['Order profile', -c.op, '(list − disc) × D19'],
+        ['Ullage', -c.ull, '(list − disc − OP) × D20'],
+        ['SD rebate', -c.sd, '(list − disc − OP − ullage) × D21'],
+        ['TOTAL customer investments', -c.custI, 'SUM rows 18:21'],
+        ['Purchase price', c.pp, 'list − customer investments (row 22)'],
+        ['', '', ''],
+        ['CONSUMER INVESTMENTS', 'Amount ($)', 'Formula'],
+        ['FFL rebate', -c.ffl, 'D24 = 2%×55% × list price (row 24)'],
+        ['Promo funding', -c.promo, 'FFL rebate × D28 (row 25)'],
+        ['TOTAL consumer investments', -c.consI, 'SUM row 24'],
+        ['', '', ''],
+        ['ROI METRICS', 'Value', ''],
+        ['Free unit cost (1 in bundle of '+bsz+')', -c.freeUnit, 'purchase price ÷ bundle size'],
+        ['Net revenue per bundle', c.netRev, 'purchase price × X ÷ bundle'],
+        ['Promo cost as % of list', c.promoPct, '(free unit + promo funding) ÷ list'],
+        ['Effective margin', c.margin, 'net revenue ÷ list price'],
+      ];
+
+      const ws1 = XLSX.utils.aoa_to_sheet(detail);
+
+      // Column widths
+      ws1['!cols'] = [{wch:38},{wch:18},{wch:42}];
+
+      // Format number cells as currency / percent
+      const currencyFmt = '"$"#,##0.00;[Red]"-$"#,##0.00';
+      const pctFmt      = '0.00%';
+      const currencyRows = [5,6,24,25,26,27,31,32,33,34,35,36,40,41,42,46,47,48,49];
+      const pctRows      = [11,12,13,14,43,44];
+      detail.forEach((row, ri) => {
+        const cellAddr = XLSX.utils.encode_cell({r:ri, c:1});
+        const cell = ws1[cellAddr];
+        if (!cell) return;
+        if (currencyRows.includes(ri) && typeof cell.v === 'number') {
+          cell.z = currencyFmt;
+        } else if (pctRows.includes(ri) && typeof cell.v === 'number') {
+          cell.z = pctFmt;
+        }
+      });
+
+      XLSX.utils.book_append_sheet(wb, ws1, 'SKU Detail');
+
+      // ── Sheet 2: All SKUs comparison ────────────────────────────────────
+      const allHeader = [
+        'SKU', 'Description', 'Origin',
+        'List Price ($)', 'Wholesale Unit ($)', 'Multiplier',
+        'Shelf Price ($)', 'Shelf per Box ($)',
+        'Cust Discount ($)', 'Order Profile ($)', 'Ullage ($)', 'SD Rebate ($)',
+        'Total Cust Investments ($)', 'Purchase Price ($)',
+        'FFL Rebate ($)', 'Promo Funding ($)',
+        'Free Unit Cost ($)', 'Net Rev / Bundle ($)',
+        'Promo Cost %', 'Margin %'
+      ];
+
+      const allRows = sc.skus.map(sk => {
+        const cc = calc(sk, inp);
+        return [
+          sk.sku, sk.desc, sk.origin,
+          cc.lp, sk.wup, cc.mult,
+          sk.shelf, cc.shelfBox,
+          -cc.disc, -cc.op, -cc.ull, -cc.sd,
+          -cc.custI, cc.pp,
+          -cc.ffl, -cc.promo,
+          -cc.freeUnit, cc.netRev,
+          cc.promoPct, cc.margin
+        ];
+      });
+
+      const ws2 = XLSX.utils.aoa_to_sheet([allHeader, ...allRows]);
+      ws2['!cols'] = [
+        {wch:12},{wch:30},{wch:8},
+        {wch:14},{wch:16},{wch:12},
+        {wch:14},{wch:14},
+        {wch:16},{wch:16},{wch:12},{wch:14},
+        {wch:22},{wch:16},
+        {wch:14},{wch:16},
+        {wch:16},{wch:18},
+        {wch:13},{wch:10}
+      ];
+
+      // Format data rows
+      allRows.forEach((_, ri) => {
+        const r = ri + 1;
+        [3,4,6,7,8,9,10,11,12,13,14,15,16,17].forEach(ci => {
+          const addr = XLSX.utils.encode_cell({r, c:ci});
+          const cell = ws2[addr];
+          if (cell && typeof cell.v === 'number') cell.z = currencyFmt;
+        });
+        [18,19].forEach(ci => {
+          const addr = XLSX.utils.encode_cell({r, c:ci});
+          const cell = ws2[addr];
+          if (cell && typeof cell.v === 'number') cell.z = pctFmt;
+        });
+      });
+
+      XLSX.utils.book_append_sheet(wb, ws2, 'All SKUs — Comparison');
+
+      // ── Sheet 3: Config snapshot ─────────────────────────────────────────
+      const cfgRows = [
+        ['EXPORT DETAILS', ''],
+        ['Generated at', now.toLocaleString('en-AU')],
+        ['Scenario', sc.label],
+        ['Active SKU', s.sku + ' · ' + s.desc],
+        ['', ''],
+        ['INPUT ASSUMPTIONS', ''],
+        ['Buy X get 1 free (X)', inp.X],
+        ['Bundle size', bsz],
+        ['FF Funded', document.getElementById('ffFunded').value],
+        ['Promo funding factor (D28)', inp.d28],
+        ['Customer discount rate (D18)', inp.disc],
+        ['Order profile rate (D19)', inp.op],
+        ['Ullage rate (D20)', inp.ull],
+        ['SD rebate rate (D21)', inp.sd],
+        ['FFL rebate rate (D24)', 0.02 * 0.55],
+      ];
+      const ws3 = XLSX.utils.aoa_to_sheet(cfgRows);
+      ws3['!cols'] = [{wch:32},{wch:20}];
+      [9,10,11,12,13,14].forEach(ri => {
+        const addr = XLSX.utils.encode_cell({r:ri, c:1});
+        const cell = ws3[addr];
+        if (cell && typeof cell.v === 'number') cell.z = pctFmt;
+      });
+      XLSX.utils.book_append_sheet(wb, ws3, 'Config Snapshot');
+
+      // ── Download ─────────────────────────────────────────────────────────
+      const filename = `PromoROI_${sc.label.replace(/[^a-z0-9]/gi,'_')}_${s.sku}_${now.toISOString().slice(0,10)}.xlsx`;
+      XLSX.writeFile(wb, filename);
+
+    } catch(e) {
+      alert('Export failed: ' + e.message);
+    } finally {
+      btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 1v9M8 10l-3-3M8 10l3-3M2 12v1a1 1 0 001 1h10a1 1 0 001-1v-1" stroke="#085041" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Export Excel`;
+      btn.disabled = false;
+    }
+  }, 50);
+};
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</body>
+</html>
